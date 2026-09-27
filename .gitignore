@@ -1,0 +1,26 @@
+# Node
+node_modules/
+dist/
+.vite/
+*.local
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Environment
+.env
+.env.local
+
+# Storage (uploads, rendered pages, exported reports)
+backend/storage/
+chroma/
+.chroma/
+
+# Misc
+.DS_Store
+*.log
+.vscode/
+.idea/

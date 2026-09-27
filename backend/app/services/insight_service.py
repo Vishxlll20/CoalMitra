@@ -1,0 +1,53 @@
+"""Insights: word frequencies (word cloud) + topic weighting + topic drift."""
+from __future__ import annotations
+
+from app.utils.text import tokenize
+
+
+def compute_word_stats(page_texts: list[str]) -> list[tuple[str, int]]:
+    """Count word frequencies across a document's pages (EN + Devanagari)."""
+    counts: dict[str, int] = {}
+    for t in page_texts:
+        for w in tokenize(t):
+            counts[w] = counts.get(w, 0) + 1
+    return sorted(counts.items(), key=lambda kv: -kv[1])
+
+
+def top_words(word_docs: list[dict], limit: int = 120) -> list[dict]:
+    """Aggregate document word stats into a global word cloud payload.
+
+    word_docs: list of {word, count, document_id}
+    Returns [{word, count, size, color_idx}] sized for a word cloud.
+    """
+    agg: dict[str, int] = {}
+    for wd in word_docs:
+        agg[wd["word"]] = agg.get(wd["word"], 0) + wd["count"]
+    ranked = sorted(agg.items(), key=lambda kv: -kv[1])[:limit]
+    if not ranked:
+        return []
+    max_c = ranked[0][1] or 1
+    return [
+        {
+            "word": w,
+            "count": c,
+            "size": 12 + int(48 * (c / max_c)),
+        }
+        for w, c in ranked
+    ]
+
+
+def drift_series(document_topics: list[dict]) -> list[dict]:
+    """Build [{quarter, topic, weight}] for the stacked area chart.
+
+    document_topics: [{quarter, label, weight}]
+    """
+    out: list[dict] = []
+    for dt in sorted(document_topics, key=lambda x: x["quarter"]):
+        out.append({
+            "quarter": dt["quarter"],
+            "topic": dt["label"],
+            "weight": round(dt["weight"], 3),
+        })
+    return out
+
+

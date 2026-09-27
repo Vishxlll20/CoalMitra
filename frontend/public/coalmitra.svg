@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="7" fill="#0B1B2B"/>
+  <!-- coal block -->
+  <path d="M9 20 L9 14 L13 11 L17 14 L17 20 Z" fill="#E8A33D"/>
+  <!-- spark -->
+  <path d="M21 8 L22.6 12.2 L27 13 L23.4 15.8 L25 20 L21 17.4 L17 20 L18.6 15.8 L15 13 L19.4 12.2 Z" fill="#F8F6F2" opacity="0.9"/>
+</svg>
