@@ -9,8 +9,11 @@ import { StatRowSkeleton } from "../../components/shared/LoadingSkeleton";
 import { Badge } from "../../components/ui/Badge";
 import type { Document } from "../../types";
 import { useDropzone } from "react-dropzone";
+import { useRoleStore } from "../../stores/role";
 
 export function Documents() {
+  const role = useRoleStore((state) => state.role);
+  const canUpload = role === "GEOLOGIST";
   const [docs, setDocs] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -25,6 +28,7 @@ export function Documents() {
 
   const { getRootProps, getInputProps, open } = useDropzone({
     noClick: true,
+    disabled: !canUpload,
     accept: { "application/pdf": [".pdf"], "image/*": [".png", ".jpg", ".jpeg", ".tiff"] },
     onDrop: async (files) => {
       if (!files.length) return;
@@ -50,14 +54,14 @@ export function Documents() {
         title="Documents"
         description="Uploaded geological reports, scans, and prospecting sheets."
         eyebrow="Documents"
-        actions={
+        actions={canUpload ? (
           <button
             onClick={open}
             className="inline-flex items-center gap-2 rounded-md bg-gold-500 px-4 py-2 text-[12.5px] font-semibold text-navy-950 transition-colors hover:bg-gold-400"
           >
             <Plus className="h-3.5 w-3.5" /> Upload files
           </button>
-        }
+        ) : undefined}
       />
 
       {loading ? (
@@ -67,14 +71,14 @@ export function Documents() {
           icon={<FolderOpen className="h-6 w-6" />}
           title="No documents yet"
           copy="Upload PDFs, scanned geological reports, or prospecting sheets to begin."
-          action={
+          action={canUpload ? (
             <button
               onClick={open}
               className="mt-2 inline-flex items-center gap-2 rounded-md bg-gold-500 px-4 py-2 text-[12.5px] font-semibold text-navy-950 transition-colors hover:bg-gold-400"
             >
               <Plus className="h-3.5 w-3.5" /> Upload your first document
             </button>
-          }
+          ) : undefined}
         />
       ) : (
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">

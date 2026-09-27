@@ -14,10 +14,9 @@ interface RoleState {
 }
 
 export const useRoleStore = create<RoleState>((set) => ({
-  role: (localStorage.getItem("coalmitra.role") as Role) || "GEOLOGIST",
-  roleMeta: ROLES[(localStorage.getItem("coalmitra.role") as Role) === "MINISTRY_OFFICIAL" ? 1 : (localStorage.getItem("coalmitra.role") as Role) === "AUDITOR" ? 2 : 0],
+  role: "GEOLOGIST",
+  roleMeta: ROLES[0],
   setRole: (role) => {
-    localStorage.setItem("coalmitra.role", role);
     set({ role, roleMeta: ROLES.find((r) => r.key === role)! });
   },
 }));

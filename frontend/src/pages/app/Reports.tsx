@@ -13,8 +13,11 @@ import { Badge } from "../../components/ui/Badge";
 import { Button } from "../../components/ui/Button";
 import type { Report } from "../../types";
 import { toast } from "sonner";
+import { useRoleStore } from "../../stores/role";
 
 export function Reports() {
+  const role = useRoleStore((state) => state.role);
+  const canGenerate = role === "GEOLOGIST";
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -44,14 +47,14 @@ export function Reports() {
     <div className="space-y-6">
       <PageHeader
         title="Reports"
-        description="Auto-generated, fully traceable analysis reports."
+        description={canGenerate ? "Auto-generated, fully traceable analysis reports." : "Review ready-to-use reports with linked source evidence."}
         eyebrow="Reports"
-        actions={
+        actions={canGenerate ? (
           <Button variant="gold" onClick={handleGenerate} disabled={generating}>
             <RefreshCw className={`h-3.5 w-3.5 ${generating ? "animate-spin" : ""}`} />
             {generating ? "Generating…" : "Generate new report"}
           </Button>
-        }
+        ) : undefined}
       />
 
       {loading ? (
@@ -60,12 +63,12 @@ export function Reports() {
         <EmptyState
           icon={<FileText className="h-6 w-6" />}
           title="No reports yet"
-          copy="Reports are auto-generated from ingested documents. You can also generate one manually."
-          action={
+          copy={canGenerate ? "Reports are auto-generated from ingested documents. You can also generate one manually." : "Reports will appear here when documents have been processed."}
+          action={canGenerate ? (
             <Button variant="gold" onClick={handleGenerate} disabled={generating} className="mt-2">
               Generate first report
             </Button>
-          }
+          ) : undefined}
         />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

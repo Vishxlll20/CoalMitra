@@ -127,11 +127,19 @@ export function Dashboard() {
 
           {/* Quick links */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {[
-              { to: "/app/documents", label: "Browse documents", icon: FolderOpen, sub: "All ingested PDFs and scans" },
+            {(role === "MINISTRY_OFFICIAL" ? [
+              { to: "/app/reports", label: "View reports", icon: FileText, sub: "Ready-to-use official summaries" },
+              { to: "/app/query", label: "Ask a question", icon: MessageSquareText, sub: "Get a cited answer in English or Hindi" },
+              { to: "/app/metrics", label: "View metrics", icon: TrendingUp, sub: "Track processing and resolution" },
+            ] : role === "AUDITOR" ? [
+              { to: "/app/documents", label: "Browse source records", icon: FolderOpen, sub: "Inspect extracted evidence" },
+              { to: "/app/reports", label: "Review reports", icon: FileText, sub: "Follow figures to their sources" },
+              { to: "/app/anomalies", label: "Review anomalies", icon: AlertTriangle, sub: "Resolve flagged deviations" },
+            ] : [
+              { to: "/app/documents", label: "Browse documents", icon: FolderOpen, sub: "Ingested PDFs and scans" },
               { to: "/app/reports", label: "View reports", icon: FileText, sub: "Auto-generated summaries" },
               { to: "/app/anomalies", label: "Review anomalies", icon: AlertTriangle, sub: "Deviations flagged this quarter" },
-            ].map(({ to, label, icon: Icon, sub }) => (
+            ]).map(({ to, label, icon: Icon, sub }) => (
               <Link
                 key={to}
                 to={to}

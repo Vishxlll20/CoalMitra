@@ -1,7 +1,8 @@
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
@@ -48,6 +49,27 @@ def _startup():
     except Exception as exc:  # never block boot on seed failure
         import logging
         logging.getLogger("coalmitra").error(f"Auto-seed failed: {exc}")
+    try:
+        from app.routers.auth import ensure_demo_accounts
+        ensure_demo_accounts()
+    except Exception as exc:
+        import logging
+        logging.getLogger("coalmitra").error(f"Demo account setup failed: {exc}")
+
+
+@app.middleware("http")
+async def protect_source_files(request: Request, call_next):
+    if request.url.path.startswith("/static/"):
+        from app.core.auth import SESSION_COOKIE, user_for_token
+        from app.core.database import SessionLocal
+
+        db = SessionLocal()
+        try:
+            if user_for_token(db, request.cookies.get(SESSION_COOKIE)) is None:
+                return JSONResponse({"detail": "Sign in to access source files"}, status_code=401)
+        finally:
+            db.close()
+    return await call_next(request)
 
 
 # Static mounts for rendered pages / uploaded PDFs / exported reports
@@ -107,6 +129,7 @@ def seed_state():
 def _mount_routers():
     from app.routers import (
         anomalies,
+        auth,
         chat,
         dashboard,
         documents,
@@ -116,8 +139,11 @@ def _mount_routers():
         reports,
     )
 
+    from app.core.auth import get_current_user
+
+    app.include_router(auth.router, prefix="/api")
     for r in (documents, extraction, reports, insights, anomalies, chat, metrics, dashboard):
-        app.include_router(r.router, prefix="/api")
+        app.include_router(r.router, prefix="/api", dependencies=[Depends(get_current_user)])
 
 
 _mount_routers()

@@ -41,6 +41,8 @@ class User(Base):
     subsidiary = Column(String(40), default="")
     avatar_color = Column(String(9), default="#0B1B2B")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    credential = relationship("AuthCredential", back_populates="user", uselist=False,
+                              cascade="all, delete-orphan")
 
 
 class Coalfield(Base):

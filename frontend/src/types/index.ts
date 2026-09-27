@@ -2,6 +2,23 @@
 
 export type Role = "GEOLOGIST" | "MINISTRY_OFFICIAL" | "AUDITOR";
 
+export interface AuthUser {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  title: string;
+  subsidiary: string;
+}
+
+export interface DemoAccount {
+  email: string;
+  password: string;
+  role: Role;
+  name: string;
+  title: string;
+}
+
 export type DocCategory =
   | "GEOLOGICAL_REPORT"
   | "PROSPECTING"

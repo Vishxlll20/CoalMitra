@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     # Demo flag: 1 = deterministic seeded pipeline (default, zero fragile deps).
     # 0 = real Tesseract / ChromaDB / faster-whisper paths.
     demo_mode: bool = True
+    auth_cookie_secure: bool = False
 
     # Storage roots (relative to the backend package parent)
     storage_dir: str = "storage"

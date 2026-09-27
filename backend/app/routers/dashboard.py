@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.auth import get_current_user
 from app.models import Document, DocStatus, FieldExtraction, QuantMetric, User
 from app.models.chat import ChatCitation, ChatMessage
 from app.models.report import Anomaly, Report
@@ -13,7 +14,9 @@ router = APIRouter(tags=["dashboard"])
 
 
 @router.get("/dashboard/{role}")
-def dashboard(role: str = "GEOLOGIST", db: Session = Depends(get_db)):
+def dashboard(role: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    if role.upper() != user.role.value:
+        raise HTTPException(403, "You can only view your assigned dashboard")
     docs_total = db.query(func.count(Document.id)).scalar() or 0
     ready = db.query(func.count(Document.id)).filter(Document.status == DocStatus.READY).scalar() or 0
     avg_conf = db.query(func.avg(FieldExtraction.confidence)).scalar() or 0
@@ -22,12 +25,7 @@ def dashboard(role: str = "GEOLOGIST", db: Session = Depends(get_db)):
     anomalies_open = db.query(func.count(Anomaly.id)).filter(Anomaly.status == "OPEN").scalar() or 0
     queries = db.query(func.count(ChatMessage.id)).scalar() or 0
 
-    role_map = {
-        "GEOLOGIST": "GEOLOGIST",
-        "MINISTRY_OFFICIAL": "MINISTRY_OFFICIAL",
-        "AUDITOR": "AUDITOR",
-    }
-    normalized_role = role_map.get(role, "GEOLOGIST")
+    normalized_role = user.role.value
 
     # Shared keys every role's stat row understands (the Dashboard reads these).
     # Dashboard frontend reads: documents, documents_total, reports, reports_recent,

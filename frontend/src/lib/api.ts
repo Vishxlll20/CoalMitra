@@ -2,9 +2,11 @@
 
 import type {
   Anomaly,
+  AuthUser,
   ChatMessage,
   Coalfield,
   DashboardPayload,
+  DemoAccount,
   Document,
   FieldExtraction,
   Health,
@@ -25,6 +27,7 @@ const BASE = "/api";
 async function raw<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     headers: init?.body instanceof FormData ? {} : { "Content-Type": "application/json" },
+    credentials: "same-origin",
     ...init,
   });
   if (!res.ok) {
@@ -37,11 +40,22 @@ async function raw<T>(path: string, init?: RequestInit): Promise<T> {
     }
     throw new Error(detail);
   }
+  if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }
 
 export const api = {
   health: () => raw<Health>("/health"),
+
+  auth: {
+    demoAccounts: () => raw<DemoAccount[]>("/auth/demo-accounts"),
+    login: (email: string, password: string) =>
+      raw<AuthUser>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
+    register: (name: string, email: string, password: string) =>
+      raw<AuthUser>("/auth/register", { method: "POST", body: JSON.stringify({ name, email, password }) }),
+    me: () => raw<AuthUser | null>("/auth/me"),
+    logout: () => raw<void>("/auth/logout", { method: "POST" }),
+  },
 
   documents: {
     list: () => raw<Document[]>("/documents"),

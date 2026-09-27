@@ -11,15 +11,16 @@ import {
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { ROLES, useRoleStore } from "../../stores/role";
+import type { Role } from "../../types";
 
 const NAV = [
-  { to: "/app", label: "Dashboard", icon: LayoutDashboard, end: true },
-  { to: "/app/documents", label: "Documents", icon: FolderOpen, end: false },
-  { to: "/app/reports", label: "Reports", icon: FileText, end: false },
-  { to: "/app/insights", label: "Insights", icon: Cloud, end: false },
-  { to: "/app/anomalies", label: "Anomalies", icon: AlertTriangle, end: false },
-  { to: "/app/query", label: "AI Query", icon: MessageSquareText, end: false },
-  { to: "/app/metrics", label: "Metrics", icon: Gauge, end: false },
+  { to: "/app", label: "Dashboard", icon: LayoutDashboard, end: true, roles: ["GEOLOGIST", "MINISTRY_OFFICIAL", "AUDITOR"] },
+  { to: "/app/documents", label: "Documents", icon: FolderOpen, end: false, roles: ["GEOLOGIST", "AUDITOR"] },
+  { to: "/app/reports", label: "Reports", icon: FileText, end: false, roles: ["GEOLOGIST", "MINISTRY_OFFICIAL", "AUDITOR"] },
+  { to: "/app/insights", label: "Insights", icon: Cloud, end: false, roles: ["GEOLOGIST", "MINISTRY_OFFICIAL", "AUDITOR"] },
+  { to: "/app/anomalies", label: "Anomalies", icon: AlertTriangle, end: false, roles: ["GEOLOGIST", "AUDITOR"] },
+  { to: "/app/query", label: "AI Query", icon: MessageSquareText, end: false, roles: ["GEOLOGIST", "MINISTRY_OFFICIAL"] },
+  { to: "/app/metrics", label: "Metrics", icon: Gauge, end: false, roles: ["GEOLOGIST", "MINISTRY_OFFICIAL", "AUDITOR"] },
 ];
 
 export function Sidebar() {
@@ -56,7 +57,7 @@ export function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-3">
-        {NAV.map(({ to, label, icon: Icon, end }) => (
+        {NAV.filter((item) => (item.roles as readonly Role[]).includes(role)).map(({ to, label, icon: Icon, end }) => (
           <NavLink
             key={to}
             to={to}

@@ -1,6 +1,6 @@
 # CoalMitra — Demo Script (judge walk)
 
-Everything below uses the **seeded demo corpus** (15 documents across 7 CMPDI coalfields, real PyMuPDF-rendered page images, real bboxes, 13 anomalies, 15 auto-reports). No external services or API keys are required.
+Everything below uses the **seeded demo corpus** (15 documents across 7 CMPDI coalfields, real PyMuPDF-rendered page images, real bboxes, 13 anomalies, 19 reports). No external services or API keys are required.
 
 > Start both servers first:
 > ```bash
@@ -15,16 +15,25 @@ Everything below uses the **seeded demo corpus** (15 documents across 7 CMPDI co
 
 Hero: "Turning coal-field papers into decision-ready intelligence." Feature cards, seeded stats strip (documents processed, extraction accuracy, anomaly flags), subsidiary logos. All numbers are live `GET /api/health` + `/api/metrics/summary`.
 
-## 2. Role-aware dashboard
+## 2. Sign-in and role access
 
-Switch role from the topbar (**Geologist / Ministry Official / Auditor**). Each tab loads `GET /api/dashboard/{role}`:
+Click **Open app** and choose a demo account on the sign-in page. All demo roles use `CoalMitraDemo2026!`:
+- Geologist — `geologist@coalmitra.demo`
+- Ministry Official — `ministry@coalmitra.demo`
+- Auditor — `auditor@coalmitra.demo`
+
+The role shown in the topbar is assigned by the server; there is no client-side role switch. New registrations receive the Geologist role.
+
+## 3. Role-aware dashboard
+
+Each signed-in account loads its own `GET /api/dashboard/{role}` view:
 - **Geologist** — raw data: recent documents, extraction confidence, field-level feed.
 - **Ministry Official** — summaries: report count, open anomalies, ready answers.
 - **Auditor** — governance: audit trail, anomaly counts, confidence distribution.
 
 Each stat card counts up on mount; all values live.
 
-## 3. Documents + extraction
+## 4. Documents + extraction
 
 Open **Documents**. Cards show category, coalfield, block, status, confidence. Click one →
 **Document detail**: field table with confidence chips + the page viewer. Note a chip →
@@ -36,42 +45,44 @@ up the extraction confidence; footer shows doc title, page, and **Open original*
 Upload → OCR → Extract → Index → Ready on the seeded deterministic progress; the new
 doc appears in the list.
 
-## 4. Reports — the traceability centerpiece
+Document management is available to Geologists; Auditors can inspect source records read-only. Ministry Officials can open source pages through report and answer citations, but do not get raw field/emission views.
+
+## 5. Reports — the traceability centerpiece
 
 Open **Reports**, pick one. The narrative mixes paragraphs and data tables. The numbers are
 **SourcePills** — each one is a clickable ref to the exact source line. Click any number →
 same slide-in panel → page swap → gold pulse on the bbox → confidence count-up.
 
-Click **Generate** in the header → a fresh report is produced (`POST /api/reports/generate`)
+As a Geologist, click **Generate** in the header → a fresh report is produced (`POST /api/reports/generate`)
 and appears in the list. Click **Export PDF** → downloads a reportlab-rendered PDF.
 
-## 5. Insights
+## 6. Insights
 
 **Word cloud** (120 terms, EN + Devanagari, sized by frequency). **Topic drift** — quarterly
 stacked area of 6 topics (Exploration / Reserves / Seam Quality / Environment / Production /
 Compliance). Click a topic chip → the doc list filters to documents in that topic.
 
-## 6. Anomalies
+## 7. Anomalies
 
 Consistency dashboard: severity cards (Critical/High/Medium), deviation bars vs coalfield
-baseline, rationale text. Click **Review** → ack → the card flips to reviewed inline
+baseline, rationale text. As an Auditor, click **Ack** → the card flips to reviewed inline
 (`POST /api/anomalies/{id}/ack`). Each anomaly deep-links its primary and baseline documents.
 
-## 7. AI query — EN + HI with citations
+## 8. AI query — EN + HI with citations
 
 Open **Query**. Pick or create a session. Ask in English or Hindi (the demo corpus answers
 in Devanagari for Hindi prompts). Every answer carries a **confidence gauge** and citation
 chips; click a citation → the source panel opens on the exact page region. The response is
 styled as an "official response" (TemplateResponder — no LLM key needed).
 
-## 8. Hindi voice query
+## 9. Hindi voice query
 
 Press the mic button, speak, and the waveform animates while recording. On stop, the pure-JS
 WAV encoder ships the audio to `POST /api/chat/sessions/{id}/voice`; demo mode plays back a
 deterministic Hindi/English transcript; the answer renders with citations, and the browser
 **reads it back** via `speechSynthesis` (`hi-IN` when Hindi).
 
-## 9. Metrics
+## 10. Metrics
 
 Metric tiles: report-prep reduction %, extraction accuracy %, automation %, query resolution %,
 each with an upward-trending sparkline from `GET /api/metrics/trends`. Open-anomaly count and

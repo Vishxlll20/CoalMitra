@@ -8,8 +8,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_
 
 from app.core.config import settings
+from app.core.auth import require_roles
 from app.core.database import get_db
-from app.models import Document, DocCategory, DocSource, DocStatus, FieldExtraction
+from app.models import Document, DocCategory, DocSource, DocStatus, FieldExtraction, Role
 
 router = APIRouter(tags=["documents"])
 
@@ -112,7 +113,7 @@ def _run_ingest(doc_id: str):
     ingest_document(doc_id)
 
 
-@router.post("/documents/upload")
+@router.post("/documents/upload", dependencies=[Depends(require_roles(Role.GEOLOGIST))])
 async def upload_documents(
     background: BackgroundTasks,
     files: list[UploadFile] = File(...),
@@ -163,7 +164,7 @@ def doc_file(doc_id: str, db: Session = Depends(get_db)):
     return FileResponse(file_path, filename=f"{d.title or 'doc'}.pdf")
 
 
-@router.delete("/documents/{doc_id}")
+@router.delete("/documents/{doc_id}", dependencies=[Depends(require_roles(Role.GEOLOGIST))])
 def delete_document(doc_id: str, db: Session = Depends(get_db)):
     d = db.query(Document).get(doc_id)
     if d is None:

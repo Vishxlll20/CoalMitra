@@ -11,8 +11,10 @@ import { SourcePill } from "../../components/shared/SourcePill";
 import { StatCard } from "../../components/shared/StatCard";
 import type { Anomaly } from "../../types";
 import { toast } from "sonner";
+import { useRoleStore } from "../../stores/role";
 
 export function Anomalies() {
+  const role = useRoleStore((state) => state.role);
   const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -115,7 +117,7 @@ export function Anomalies() {
                     </Badge>
                   </td>
                   <td className="px-5 py-3">
-                    {a.status === "open" && (
+                    {a.status === "open" && role === "AUDITOR" && (
                       <Button
                         variant="ghost"
                         size="sm"

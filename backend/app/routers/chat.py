@@ -6,11 +6,12 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.models import DocumentPage, TextEmission
+from app.core.auth import get_current_user, require_roles
+from app.models import AuthChatSession, DocumentPage, Role, TextEmission, User
 from app.models.chat import ChatCitation, ChatMessage as ChatMsg, ChatRole, ChatSession
 from app.utils.text import is_hindi
 
-router = APIRouter(tags=["chat"])
+router = APIRouter(tags=["chat"], dependencies=[Depends(require_roles(Role.GEOLOGIST, Role.MINISTRY_OFFICIAL))])
 
 
 def _citation_ser(c: ChatCitation) -> dict:
@@ -77,19 +78,24 @@ def _collect_corpus(db) -> list[dict]:
 
 
 @router.post("/chat/sessions")
-def create_session(payload: dict | None = None, db: Session = Depends(get_db)):
+def create_session(payload: dict | None = None, db: Session = Depends(get_db),
+                   user: User = Depends(get_current_user)):
     title = (payload or {}).get("title") or "New query"
     s = ChatSession(title=title, language="en")
     db.add(s)
+    db.flush()
+    db.add(AuthChatSession(chat_session_id=s.id, user_id=user.id))
     db.commit()
     return {"id": s.id, "title": s.title, "language": s.language}
 
 
 @router.get("/chat/sessions")
-def list_sessions(db: Session = Depends(get_db)):
-    from sqlalchemy import func
+def list_sessions(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    from sqlalchemy import or_
     rows = (
         db.query(ChatSession)
+        .outerjoin(AuthChatSession, AuthChatSession.chat_session_id == ChatSession.id)
+        .filter(or_(AuthChatSession.user_id == user.id, AuthChatSession.user_id.is_(None)))
         .order_by(ChatSession.created_at.desc())
         .all()
     )
@@ -97,7 +103,14 @@ def list_sessions(db: Session = Depends(get_db)):
 
 
 @router.get("/chat/sessions/{session_id}/messages")
-def get_messages(session_id: str, db: Session = Depends(get_db)):
+def get_messages(session_id: str, db: Session = Depends(get_db),
+                 user: User = Depends(get_current_user)):
+    session = db.query(ChatSession).get(session_id)
+    if session is None:
+        raise HTTPException(404, "Session not found")
+    owner = db.query(AuthChatSession).filter(AuthChatSession.chat_session_id == session_id).first()
+    if owner and owner.user_id != user.id:
+        raise HTTPException(404, "Session not found")
     rows = (
         db.query(ChatMsg)
         .filter(ChatMsg.session_id == session_id)
@@ -153,12 +166,19 @@ def _answer(question: str, lang: str, db: Session) -> dict:
     return answerer.answer(question, retrieved, lang)
 
 
-def _run_query(question: str, lang: str, session_id: str, mode: str, db: Session) -> dict:
+def _run_query(question: str, lang: str, session_id: str, mode: str, db: Session,
+               user_id: str) -> dict:
     """Shared logic for text and voice queries. Returns a ChatMessage payload."""
     t0 = time.time()
     s = db.query(ChatSession).get(session_id)
     if s is None:
         raise HTTPException(404, "Session not found")
+    owner = db.query(AuthChatSession).filter(AuthChatSession.chat_session_id == session_id).first()
+    if owner and owner.user_id != user_id:
+        raise HTTPException(404, "Session not found")
+    if owner is None:
+        db.add(AuthChatSession(chat_session_id=session_id, user_id=user_id))
+        db.flush()
 
     result = _answer(question, lang, db)
     ms = int((time.time() - t0) * 1000)
@@ -198,7 +218,8 @@ def _run_query(question: str, lang: str, session_id: str, mode: str, db: Session
 
 
 @router.post("/chat/sessions/{session_id}/query")
-def chat_query(session_id: str, payload: dict, db: Session = Depends(get_db)):
+def chat_query(session_id: str, payload: dict, db: Session = Depends(get_db),
+               user: User = Depends(get_current_user)):
     question = (payload.get("text") or payload.get("question") or "").strip()
     lang = (payload.get("language") or payload.get("lang") or "auto")[:2]
 
@@ -208,7 +229,7 @@ def chat_query(session_id: str, payload: dict, db: Session = Depends(get_db)):
     if lang == "auto":
         lang = "hi" if is_hindi(question) else "en"
 
-    return _run_query(question, lang, session_id, "text", db)
+    return _run_query(question, lang, session_id, "text", db, user.id)
 
 
 @router.post("/chat/sessions/{session_id}/voice")
@@ -217,6 +238,7 @@ async def chat_voice(
     audio: UploadFile = File(...),
     language: str = Form("auto"),
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     audio_data = await audio.read()
     if not audio_data:
@@ -229,12 +251,13 @@ async def chat_voice(
     if language == "auto":
         language = detected
 
-    return _run_query(question, language, session_id, "voice", db)
+    return _run_query(question, language, session_id, "voice", db, user.id)
 
 
 # Legacy endpoints kept for backward compatibility
 @router.post("/chat/query")
-def chat_query_legacy(payload: dict, db: Session = Depends(get_db)):
+def chat_query_legacy(payload: dict, db: Session = Depends(get_db),
+                      user: User = Depends(get_current_user)):
     question = (payload.get("question") or "").strip()
     lang = (payload.get("lang") or "auto")[:2]
     session_id = payload.get("session_id")
@@ -251,6 +274,7 @@ def chat_query_legacy(payload: dict, db: Session = Depends(get_db)):
         db.add(s)
         db.flush()
         session_id = s.id
+        db.add(AuthChatSession(chat_session_id=session_id, user_id=user.id))
 
-    msg = _run_query(question, lang, session_id, mode, db)
+    msg = _run_query(question, lang, session_id, mode, db, user.id)
     return {"session_id": session_id, "system_message": msg}

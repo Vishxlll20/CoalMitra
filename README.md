@@ -8,6 +8,7 @@ Built for **Smart India Hackathon**. Demo mode has been smoke-tested end-to-end 
 
 - **Traceability centerpiece**: every report number, extraction chip, chat citation, and anomaly is a clickable ref → the source page slides in, the normalized bbox pulses gold, confidence counts up, "Open original" serves the source PDF.
 - Role-aware dashboards (**Geologist / Ministry Official / Auditor**), live landing KPIs and metrics with trends, word cloud + topic drift with clickable document filters, anomaly consistency dashboard, AI query with citations in EN + HI, Hindi voice query with browser TTS read-back.
+- **Authentication and RBAC**: HTTP-only, revocable sessions; new registrations receive the Geologist role; server-side route and action checks; role-specific navigation and dashboards.
 - **Demo-first pipeline**: `DEMO_MODE=1` (default) plays back a deterministic seeded corpus instantly — no Tesseract/Chroma/Whisper/API keys needed. Flip to `DEMO_MODE=0` for the real OCR/RAG/ASR paths.
 
 ## Quickstart (demo, no PostgreSQL required)
@@ -26,6 +27,24 @@ npm run dev                     # http://localhost:5173
 ```
 
 The app boots to a **landing screen**; the corpus (15 docs, 195 fields, 13 anomalies, 19 reports, 120 word entries across 6 topics) seeds on first startup. Landing KPIs load from the live health and metrics endpoints. Storage paths resolve relative to `backend/`, independent of the shell's current directory. Follow the judge script in `DEMO_SCRIPT.md`.
+
+Open **http://localhost:5173**, choose **Open app**, and sign in. Demo mode offers persona shortcuts on the sign-in page; all three demo accounts use the password `CoalMitraDemo2026!`:
+
+| Role | Demo email |
+|---|---|
+| Geologist | `geologist@coalmitra.demo` |
+| Ministry Official | `ministry@coalmitra.demo` |
+| Auditor | `auditor@coalmitra.demo` |
+
+New sign-ups are Geologists and cannot select or elevate their own role. In non-demo deployments, provision Ministry Official and Auditor roles through trusted database administration. For HTTPS deployments set `AUTH_COOKIE_SECURE=1`; local HTTP development defaults to a non-Secure cookie.
+
+### Role permissions
+
+- **Geologist**: dashboard, documents, extraction data, reports, insights, anomalies, and AI query; may upload documents and generate reports.
+- **Ministry Official**: summary dashboard, ready reports, insights, metrics, and cited AI queries. Source-page click-through remains available, but raw field/emission data and document management are restricted.
+- **Auditor**: read-only document/source and report review, insights, metrics, and anomaly review; may acknowledge anomalies. Chat/query access is restricted.
+
+The backend enforces these permissions in addition to hiding unavailable navigation and actions. The dashboard endpoint uses the signed-in account's assigned role rather than trusting a role supplied by the client. Chat sessions created after sign-in are private to their owner; seeded sample conversations are available as starter history.
 
 ## PostgreSQL (optional, closer to production)
 
@@ -52,8 +71,8 @@ DATABASE_URL="postgresql+psycopg2://coalmitra:coalmitra@localhost:5432/coalmitra
 ```
 CoalMitra/
 ├── backend/           FastAPI + SQLAlchemy 2.0 (psycopg2 / SQLite)
-│   ├── app/routers/   documents, extraction, reports, insights, anomalies,
-│   │                  chat, metrics, dashboard
+│   ├── app/routers/   authentication, documents, extraction, reports, insights,
+│   │                  anomalies, chat, metrics, dashboard
 │   ├── app/services/  ingestion, extraction, report, anomaly, insight, chat,
 │   │                  pdf, transcribe, answerer, index (Chroma/fastembed)
 │   ├── app/seed/      demo corpus generator + startup seeder
@@ -66,7 +85,7 @@ CoalMitra/
 
 ## API surface
 
-The typed frontend client in `frontend/src/lib/api.ts` mirrors the backend response payloads. The demo API includes `/api/health`; `/api/documents` and `/{id}`, `/{id}/status|pages|fields|emissions|file`, `/upload`, and `/coalfields`; `/api/reports` and `/{id}`, `/generate`, and `/{id}/export.pdf`; `/api/insights/{wordcloud,topics,topic-drift}` and `/api/insights/topics/{id}/documents`; `/api/anomalies` and `/{id}/ack`; `/api/metrics/{summary,trends}`; `/api/dashboard/{role}`; and `/api/chat/sessions` with message, query, and voice routes. Topic selection loads linked documents, which open in document detail.
+The typed frontend client in `frontend/src/lib/api.ts` mirrors the backend response payloads. Public endpoints are `/api/health`, `/api/seed-state`, and the demo-only `/api/auth/demo-accounts`; authentication endpoints are `/api/auth/register`, `/login`, `/me`, and `/logout`. All operational APIs and `/static/*` source files require a valid session. The API includes `/api/documents` and `/{id}`, `/{id}/status|pages|fields|emissions|file`, `/upload`, and `/coalfields`; `/api/reports` and `/{id}`, `/generate`, and `/{id}/export.pdf`; `/api/insights/{wordcloud,topics,topic-drift}` and `/api/insights/topics/{id}/documents`; `/api/anomalies` and `/{id}/ack`; `/api/metrics/{summary,trends}`; `/api/dashboard/{role}`; and `/api/chat/sessions` with message, query, and voice routes. Role-restricted writes and raw extraction data are enforced server-side. Topic selection loads linked documents, which open in document detail.
 
 ## Checks
 

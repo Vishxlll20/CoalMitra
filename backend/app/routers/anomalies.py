@@ -3,8 +3,9 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.core.auth import require_roles
 from app.core.database import get_db
-from app.models import Document
+from app.models import Document, Role
 from app.models.report import Anomaly, AnomalyStatus
 
 router = APIRouter(tags=["anomalies"])
@@ -32,7 +33,7 @@ def _ser(a: Anomaly) -> dict:
     }
 
 
-@router.get("/anomalies")
+@router.get("/anomalies", dependencies=[Depends(require_roles(Role.GEOLOGIST, Role.AUDITOR))])
 def list_anomalies(severity: str | None = None, status: str | None = None,
                    coalfield: str | None = None, db: Session = Depends(get_db)):
     q = db.query(Anomaly)
@@ -48,7 +49,7 @@ def list_anomalies(severity: str | None = None, status: str | None = None,
     return [_ser(a) for a in rows]
 
 
-@router.get("/anomalies/summary")
+@router.get("/anomalies/summary", dependencies=[Depends(require_roles(Role.GEOLOGIST, Role.AUDITOR))])
 def anomaly_summary(db: Session = Depends(get_db)):
     from sqlalchemy import func
 
@@ -64,7 +65,7 @@ def anomaly_summary(db: Session = Depends(get_db)):
     }
 
 
-@router.post("/anomalies/{anomaly_id}/ack")
+@router.post("/anomalies/{anomaly_id}/ack", dependencies=[Depends(require_roles(Role.AUDITOR))])
 def ack_anomaly(anomaly_id: str, db: Session = Depends(get_db)):
     """Mark an anomaly reviewed. Returns the full Anomaly so the UI can swap it
     inline without a refetch."""
@@ -79,6 +80,6 @@ def ack_anomaly(anomaly_id: str, db: Session = Depends(get_db)):
 
 
 # Backward-compatible alias (some callers use PATCH).
-@router.patch("/anomalies/{anomaly_id}/ack")
+@router.patch("/anomalies/{anomaly_id}/ack", dependencies=[Depends(require_roles(Role.AUDITOR))])
 def ack_anomaly_patch(anomaly_id: str, db: Session = Depends(get_db)):
     return ack_anomaly(anomaly_id, db)

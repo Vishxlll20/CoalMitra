@@ -6,8 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.auth import require_roles
 from app.core.database import get_db
-from app.models import Document, FieldExtraction, QuantMetric
+from app.models import Document, FieldExtraction, QuantMetric, Role
 from app.models.report import Report, ReportStatus
 
 router = APIRouter(tags=["reports"])
@@ -93,7 +94,7 @@ def get_report(doc_id: str, db: Session = Depends(get_db)):
     return _report_ser(r, db)
 
 
-@router.post("/reports/generate")
+@router.post("/reports/generate", dependencies=[Depends(require_roles(Role.GEOLOGIST))])
 def generate_report(payload: dict | None = None, db: Session = Depends(get_db)):
     """Auto-generate a report. Optionally scoped to a document_id; otherwise the
     latest READY document is used (the demo's one-click generate)."""
@@ -126,7 +127,7 @@ def generate_report(payload: dict | None = None, db: Session = Depends(get_db)):
     return _report_ser(r, db)
 
 
-@router.post("/documents/{doc_id}/report/generate")
+@router.post("/documents/{doc_id}/report/generate", dependencies=[Depends(require_roles(Role.GEOLOGIST))])
 def generate_document_report(doc_id: str, db: Session = Depends(get_db)):
     from app.services.ingestion import create_report
     created = create_report(doc_id)

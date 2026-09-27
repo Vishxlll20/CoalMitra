@@ -3,8 +3,9 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.core.auth import require_roles
 from app.core.database import get_db
-from app.models import Document, DocumentPage, FieldExtraction, TextEmission
+from app.models import Document, DocumentPage, FieldExtraction, Role, TextEmission
 
 router = APIRouter(tags=["extraction"])
 
@@ -30,7 +31,7 @@ def get_pages(doc_id: str, db: Session = Depends(get_db)):
     ]
 
 
-@router.get("/documents/{doc_id}/fields")
+@router.get("/documents/{doc_id}/fields", dependencies=[Depends(require_roles(Role.GEOLOGIST, Role.AUDITOR))])
 def get_fields(doc_id: str, db: Session = Depends(get_db)):
     d = db.query(Document).get(doc_id)
     if d is None:
@@ -55,7 +56,7 @@ def get_fields(doc_id: str, db: Session = Depends(get_db)):
     ]
 
 
-@router.get("/documents/{doc_id}/emissions")
+@router.get("/documents/{doc_id}/emissions", dependencies=[Depends(require_roles(Role.GEOLOGIST, Role.AUDITOR))])
 def get_emissions(doc_id: str, page: int | None = None, db: Session = Depends(get_db)):
     query = (
         db.query(TextEmission, DocumentPage.page_number)
