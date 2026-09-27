@@ -8,6 +8,13 @@ from __future__ import annotations
 
 from app.models.report import Anomaly, AnomalySeverity, AnomalyStatus
 
+_SEVERITY_RANK = {
+    AnomalySeverity.LOW: 0,
+    AnomalySeverity.MEDIUM: 1,
+    AnomalySeverity.HIGH: 2,
+    AnomalySeverity.CRITICAL: 3,
+}
+
 
 def severity_for(deviation_pct: float) -> AnomalySeverity:
     p = abs(deviation_pct)
@@ -50,7 +57,7 @@ def detect(doc, quant_metrics: list, coalfield, proof_fields: dict, db,
         sev = severity_for(deviation)
         # Sub-threshold drift (LOW) is expected variance — don't flood the QA
         # screen with noise. Only MEDIUM+ becomes a clickable anomaly.
-        if sev.value < min_severity.value:
+        if _SEVERITY_RANK[sev] < _SEVERITY_RANK[min_severity]:
             continue
 
         proof = proof_fields.get(m.metric_key)

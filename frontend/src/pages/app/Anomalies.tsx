@@ -91,7 +91,22 @@ export function Anomalies() {
                     {a.field_label}
                   </td>
                   <td className="px-5 py-3 text-ink/60">{a.block}</td>
-                  <td className="px-5 py-3 text-ink/50">{a.expected_value}</td>
+                  <td className="px-5 py-3 text-ink/50">
+                    {a.baseline_doc_id ? (
+                      <SourcePill
+                        refData={{
+                          document_id: a.baseline_doc_id,
+                          display: a.expected_value,
+                          page: a.baseline_page_number,
+                          bbox: a.baseline_bbox,
+                          confidence: a.baseline_confidence,
+                          value: a.expected_value,
+                        }}
+                        origin="anomaly"
+                        label={a.expected_value}
+                      />
+                    ) : a.expected_value}
+                  </td>
                   <td className="px-5 py-3 font-semibold text-navy-800">
                     <SourcePill
                       refData={{

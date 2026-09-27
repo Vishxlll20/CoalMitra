@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import csv
+import textwrap
 import uuid
+from io import BytesIO, StringIO
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
@@ -21,6 +24,116 @@ CATEGORY_MAP = {
     "ENVIRONMENTAL": DocCategory.ENVIRONMENTAL,
     "RESERVES": DocCategory.RESERVES,
 }
+IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp"}
+SHEET_EXTENSIONS = {".xlsx", ".csv"}
+MAX_UPLOAD_BYTES = 50 * 1024 * 1024
+
+
+def _spreadsheet_rows(filename: str, content: bytes) -> list[tuple[str, list[list[str]]]]:
+    extension = Path(filename).suffix.lower()
+    if extension == ".csv":
+        try:
+            text = content.decode("utf-8-sig")
+            rows = [[str(cell) for cell in row] for row in csv.reader(StringIO(text))]
+        except (UnicodeDecodeError, csv.Error) as exc:
+            raise HTTPException(415, f"{filename}: CSV must be valid UTF-8") from exc
+        return [(Path(filename).stem, rows)]
+
+    try:
+        from openpyxl import load_workbook
+        workbook = load_workbook(BytesIO(content), read_only=True, data_only=True)
+        try:
+            sheets = []
+            for sheet in workbook.worksheets:
+                rows = [
+                    ["" if value is None else str(value) for value in row]
+                    for row in sheet.iter_rows(values_only=True)
+                ]
+                sheets.append((sheet.title, rows))
+            return sheets
+        finally:
+            workbook.close()
+    except Exception as exc:
+        raise HTTPException(415, f"{filename}: could not read XLSX workbook") from exc
+
+
+def _render_spreadsheet_pdf(filename: str, content: bytes, destination: Path) -> None:
+    import fitz
+
+    sheets = _spreadsheet_rows(filename, content)
+    pdf = fitz.open()
+    page = pdf.new_page(width=595, height=842)
+    y = 48
+
+    def write_line(line: str, *, bold: bool = False) -> None:
+        nonlocal page, y
+        if y > 790:
+            page = pdf.new_page(width=595, height=842)
+            y = 48
+        page.insert_text((48, y), line[:160], fontsize=10, fontname="hebo" if bold else "helv")
+        y += 14
+
+    for sheet_name, rows in sheets:
+        write_line(f"Worksheet: {sheet_name}", bold=True)
+        if len(rows) > 1 and any(cell.strip() for cell in rows[0]):
+            headers = [cell.strip() or f"Column {index + 1}" for index, cell in enumerate(rows[0])]
+            for row in rows[1:]:
+                for index, value in enumerate(row):
+                    if index >= len(headers) or not value.strip():
+                        continue
+                    labeled = f"{headers[index]}: {value.strip()}"
+                    for line in textwrap.wrap(labeled, width=105, break_long_words=True) or [""]:
+                        write_line(line)
+                y += 6
+        else:
+            for row in rows:
+                flattened = " | ".join(cell.replace("\n", " ").strip() for cell in row).strip()
+                if not flattened:
+                    continue
+                for line in textwrap.wrap(flattened, width=105, break_long_words=True) or [""]:
+                    write_line(line)
+        y += 12
+    if not pdf.page_count:
+        pdf.new_page()
+    pdf.save(destination)
+    pdf.close()
+
+
+def _normalize_upload(filename: str, content: bytes, destination: Path) -> DocSource:
+    """Validate uploads and convert supported images/sheets to a PDF for ingestion."""
+    extension = Path(filename).suffix.lower()
+    if not content:
+        raise HTTPException(400, f"{filename}: file is empty")
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(413, f"{filename}: maximum upload size is 50 MB")
+    if extension == ".pdf":
+        if not content.startswith(b"%PDF-"):
+            raise HTTPException(415, f"{filename}: file does not contain a valid PDF")
+        try:
+            import fitz
+            with fitz.open(stream=content, filetype="pdf") as source:
+                if source.page_count == 0:
+                    raise ValueError("PDF has no pages")
+        except Exception as exc:
+            raise HTTPException(415, f"{filename}: could not read PDF") from exc
+        destination.write_bytes(content)
+        return DocSource.PDF
+
+    if extension in IMAGE_EXTENSIONS:
+        try:
+            from PIL import Image
+            with Image.open(BytesIO(content)) as image:
+                image.seek(0)
+                image.convert("RGB").save(destination, format="PDF", resolution=150)
+        except Exception as exc:
+            raise HTTPException(415, f"{filename}: unsupported or corrupt image") from exc
+        return DocSource.IMAGE
+
+    if extension in SHEET_EXTENSIONS:
+        _render_spreadsheet_pdf(filename, content, destination)
+        return DocSource.SPREADSHEET
+
+    raise HTTPException(415, f"{filename}: supported formats are PDF, images, XLSX, and CSV")
 
 
 def _doc_payload(d: Document, fields_count: int = 0) -> dict:
@@ -128,13 +241,14 @@ async def upload_documents(
     created = []
     for f in files:
         name = Path(f.filename or "doc.pdf").name
-        dest = upload_root / f"{name}-{uuid.uuid4().hex[:8]}.pdf"
+        stem = Path(name).stem[:100] or "document"
+        dest = upload_root / f"{stem}-{uuid.uuid4().hex[:8]}.pdf"
         content = await f.read()
-        dest.write_bytes(content)
+        source_type = _normalize_upload(name, content, dest)
         doc = Document(
             title=title or name,
             category=CATEGORY_MAP.get(category, DocCategory.GEOLOGICAL_REPORT),
-            source_type=DocSource.PDF,
+            source_type=source_type,
             status=DocStatus.UPLOADING,
             size_bytes=len(content),
             file_path=str(dest),

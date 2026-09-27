@@ -63,6 +63,11 @@ export const api = {
     status: (id: string) => raw<UploadProgress>(`/documents/${id}/status`),
     pages: (id: string) => raw<PageResult[]>(`/documents/${id}/pages`),
     fields: (id: string) => raw<FieldExtraction[]>(`/documents/${id}/fields`),
+    correctField: (documentId: string, fieldId: string, value: string) =>
+      raw<FieldExtraction>(`/documents/${documentId}/fields/${fieldId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ value }),
+      }),
     emissions: (id: string) => raw<TextEmission[]>(`/documents/${id}/emissions`),
     fileUrl: (id: string) => `${BASE}/documents/${id}/file`,
     upload: (files: File[]) => {

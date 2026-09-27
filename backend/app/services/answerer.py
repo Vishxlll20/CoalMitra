@@ -67,6 +67,7 @@ class OpenAIProvider:
         reply = self.llm.invoke(prompt).content
         citations = [
             _Citation(
+                doc_id=c.get("document_id", ""),
                 title=c.get("title", ""),
                 page=c.get("page_number", 1),
                 bbox=c.get("bbox"),

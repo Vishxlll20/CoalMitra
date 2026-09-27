@@ -155,11 +155,21 @@ def _answer(question: str, lang: str, db: Session) -> dict:
                     "char_end": int(meta.get("char_end", 300)),
                 })
     except Exception:
-        retrieved = keyword_search(question, corpus[:60], top_k=3)
+        matches = keyword_search(question, corpus, top_k=3)
+        retrieved = [
+            {
+                **match,
+                "source": match.get("text", ""),
+                "score": float(match.get("score", 0.5)),
+                "char_start": int(match.get("char_start", 0)),
+                "char_end": int(match.get("char_end", len(match.get("text", "")))),
+            }
+            for match in matches
+        ]
 
     if not retrieved:
         from app.services.answerer import demo_qa
-        return demo_qa(question, corpus[:60], lang)
+        return demo_qa(question, corpus, lang)
 
     from app.services.answerer import get_answerer
     answerer = get_answerer()

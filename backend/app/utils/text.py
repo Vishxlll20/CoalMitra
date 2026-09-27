@@ -63,11 +63,11 @@ FIELD_LABELS = {
 # Each: regex with a capture group for the numeric/grade value.
 FIELD_PATTERNS = {
     "gcv": r"G(?:ross )?C(?:alorific )?V(?:alue)?[:\s]*([0-9][0-9,\.]*)\s*(kcal/kg|Kcal/kg|kCal)",
-    "ash_content": r"(?:Ash|ash|मात्रा)[\s\w]*?\s*([0-9][0-9,\.]*)\s*%",
-    "moisture": r"(?:Moisture|moisture|नमी)[\s\w]*?\s*([0-9][0-9,\.]*)\s*%",
-    "ob_ratio": r"(?:O(?:\/|B|B\/) ?W|[Oo]verburden)[\s\w]*?([0-9][0-9,\.]*)\s*:?\s*1",
-    "proved_reserve_mt": r"(?:Proved|proved|सिद्ध)[\s\w]*?([0-9][0-9,\.]*)\s*(?:Mt|MT|mt|million tonnes|million t)",
-    "inferred_reserve_mt": r"(?:Inferred|inferred)[\s\w]*?([0-9][0-9,\.]*)\s*(?:Mt|MT|mt|million)",
+    "ash_content": r"(?:Ash|ash|मात्रा)[:\s\w-]*?([0-9][0-9,\.]*)\s*%",
+    "moisture": r"(?:Moisture|moisture|नमी)[:\s\w-]*?([0-9][0-9,\.]*)\s*%",
+    "ob_ratio": r"(?:O(?:\/|B|B\/) ?W|[Oo]verburden)[:\s\w-]*?([0-9][0-9,\.]*)\s*:?\s*1",
+    "proved_reserve_mt": r"(?:Proved|proved|सिद्ध)[:\s\w-]*?([0-9][0-9,\.]*)\s*(?:Mt|MT|mt|million tonnes|million t)",
+    "inferred_reserve_mt": r"(?:Inferred|inferred)[:\s\w-]*?([0-9][0-9,\.]*)\s*(?:Mt|MT|mt|million)",
     "grade": r"(?:Grade|grade|ग्रेड)[:\s]*([A-Z][0-9]{1,2}|[MG][0-9]{1,2})",
     "seam_name": r"Seam Name[:\s]*([A-Z][\w\/\s-]{2,40}?)(?:\s|,|;|$)",
     "depth_m": r"Seam Depth[:\s]*([0-9][0-9,\.]*)\s*m",

@@ -116,7 +116,7 @@ export function Landing() {
           {/* Eyebrow */}
           <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-gold-500/30 bg-gold-500/10 px-3.5 py-1.5 text-[11.5px] font-semibold uppercase tracking-[0.14em] text-gold-400">
             <span className="h-1.5 w-1.5 rounded-full bg-gold-500" />
-            Smart India Hackathon · Coal India Limited
+            Coal India Limited · CMPDIL
           </div>
 
           <h1 className="font-display text-[clamp(36px,5vw,62px)] font-bold leading-[1.05] tracking-tight text-white max-w-3xl">
@@ -212,7 +212,7 @@ export function Landing() {
             </span>
           </div>
           <p className="text-[11px] text-slate-600">
-            Built for Smart India Hackathon · Hybrid demo pipeline ·{" "}
+            CoalMitra · Hybrid document pipeline ·{" "}
             {health?.status === "ok" ? "Backend live" : "Backend starting"}
           </p>
         </div>

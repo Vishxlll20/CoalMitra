@@ -67,7 +67,7 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
               {ROLES.map((role) => <div key={role.key}><p className="text-[11px] font-semibold text-white">{role.label}</p><p className="mt-1 text-[10.5px] leading-4 text-slate-400">{role.blurb}</p></div>)}
             </div>
           </div>
-          <p className="relative text-[10.5px] text-slate-500">Smart India Hackathon · Problem Statement 26023</p>
+          <p className="relative text-[10.5px] text-slate-500">Central Mine Planning &amp; Design Institute</p>
         </section>
 
         <section className="flex min-h-screen flex-col px-5 py-6 sm:px-10 lg:px-14 xl:px-20">

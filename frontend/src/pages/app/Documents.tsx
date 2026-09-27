@@ -10,6 +10,15 @@ import { Badge } from "../../components/ui/Badge";
 import type { Document } from "../../types";
 import { useDropzone } from "react-dropzone";
 import { useRoleStore } from "../../stores/role";
+import { toast } from "sonner";
+
+const ACTIVE_STATUSES = new Set(["UPLOADING", "OCR", "EXTRACTING", "INDEXING", "REPORTING"]);
+
+function statusTone(status: string): "green" | "red" | "blue" | "neut" {
+  if (status === "READY") return "green";
+  if (status === "FAILED") return "red";
+  return ACTIVE_STATUSES.has(status) ? "blue" : "neut";
+}
 
 export function Documents() {
   const role = useRoleStore((state) => state.role);
@@ -17,27 +26,48 @@ export function Documents() {
   const [docs, setDocs] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [watchingIngestion, setWatchingIngestion] = useState(false);
 
   useEffect(() => {
     api.documents
       .list()
-      .then(setDocs)
+      .then((documents) => {
+        setDocs(documents);
+        setWatchingIngestion(documents.some((doc) => ACTIVE_STATUSES.has(doc.status)));
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    if (!watchingIngestion) return;
+    const timer = window.setInterval(() => {
+      api.documents.list().then((documents) => {
+        setDocs(documents);
+        if (!documents.some((doc) => ACTIVE_STATUSES.has(doc.status))) setWatchingIngestion(false);
+      }).catch(() => {});
+    }, 1800);
+    return () => window.clearInterval(timer);
+  }, [watchingIngestion]);
+
   const { getRootProps, getInputProps, open } = useDropzone({
     noClick: true,
     disabled: !canUpload,
-    accept: { "application/pdf": [".pdf"], "image/*": [".png", ".jpg", ".jpeg", ".tiff"] },
+    accept: {
+      "application/pdf": [".pdf"],
+      "image/*": [".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp"],
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
+      "text/csv": [".csv"],
+    },
     onDrop: async (files) => {
       if (!files.length) return;
       setUploading(true);
       try {
         const uploaded = await api.documents.upload(files);
         setDocs((prev) => [...uploaded, ...prev]);
-      } catch {
-        /* toast handled by api.raw */
+        setWatchingIngestion(true);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Upload failed");
       } finally {
         setUploading(false);
       }
@@ -70,7 +100,7 @@ export function Documents() {
         <EmptyState
           icon={<FolderOpen className="h-6 w-6" />}
           title="No documents yet"
-          copy="Upload PDFs, scanned geological reports, or prospecting sheets to begin."
+          copy="Upload PDFs, scanned images, CSVs, or XLSX workbooks to begin."
           action={canUpload ? (
             <button
               onClick={open}
@@ -88,6 +118,7 @@ export function Documents() {
                 <th className="px-5 py-3">Document</th>
                 <th className="px-5 py-3">Block</th>
                 <th className="px-5 py-3">Category</th>
+                <th className="px-5 py-3">Processing</th>
                 <th className="px-5 py-3 text-right">Confidence</th>
                 <th className="px-5 py-3 text-right">Date</th>
                 <th className="w-10" />
@@ -124,6 +155,11 @@ export function Documents() {
                         {doc.category.replace("_", " ")}
                       </Badge>
                     </td>
+                    <td className="px-5 py-3.5">
+                      <Badge tone={statusTone(doc.status)} className="text-[10px]">
+                        {doc.status === "FAILED" ? doc.ingestion_progress.message || "FAILED" : doc.status}
+                      </Badge>
+                    </td>
                     <td className="px-5 py-3.5 text-right">
                       <span
                         className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold ${
@@ -151,10 +187,10 @@ export function Documents() {
         </div>
       )}
 
-      {uploading && (
+      {(uploading || watchingIngestion) && (
         <div className="fixed bottom-6 right-6 z-50 rounded-lg bg-navy-900 px-4 py-3 text-[12.5px] font-medium text-paper shadow-lift animate-rise">
           <span className="mr-2 inline-block h-3 w-3 animate-spin rounded-full border-2 border-gold-400 border-t-transparent" />
-          Uploading files to pipeline…
+          {uploading ? "Uploading files…" : "Processing uploaded documents…"}
         </div>
       )}
     </div>

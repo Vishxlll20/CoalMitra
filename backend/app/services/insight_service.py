@@ -1,7 +1,18 @@
 """Insights: word frequencies (word cloud) + topic weighting + topic drift."""
 from __future__ import annotations
 
+import re
+
 from app.utils.text import tokenize
+
+TOPIC_TERMS = {
+    "exploration": {"exploration", "borehole", "drilling", "prospecting", "survey", "mapping", "अन्वेषण", "ड्रिलिंग"},
+    "reserves": {"reserve", "reserves", "proved", "inferred", "resource", "भंडार", "सिद्ध"},
+    "seam-quality": {"seam", "grade", "gcv", "calorific", "ash", "moisture", "quality", "सीम", "गुणवत्ता", "राख"},
+    "environment": {"environment", "closure", "reclamation", "emission", "forest", "water", "पर्यावरण", "पुनर्वास"},
+    "production": {"production", "output", "dispatch", "mtpa", "tonnage", "उत्पादन"},
+    "compliance": {"compliance", "consent", "clearance", "audit", "statutory", "safety", "अनुपालन", "स्वीकृति"},
+}
 
 
 def compute_word_stats(page_texts: list[str]) -> list[tuple[str, int]]:
@@ -11,6 +22,23 @@ def compute_word_stats(page_texts: list[str]) -> list[tuple[str, int]]:
         for w in tokenize(t):
             counts[w] = counts.get(w, 0) + 1
     return sorted(counts.items(), key=lambda kv: -kv[1])
+
+
+def infer_topic_weights(text: str, limit: int = 3) -> list[tuple[str, float]]:
+    """Rank interpretable EN/HI topic keyword matches for a document's text."""
+    tokens = re.findall(r"[\wऀ-ॿ]+", text.lower())
+    counts = {
+        topic: sum(1 for token in tokens if token in terms)
+        for topic, terms in TOPIC_TERMS.items()
+    }
+    ranked = sorted(
+        ((topic, count) for topic, count in counts.items() if count),
+        key=lambda item: (-item[1], item[0]),
+    )[:limit]
+    if not ranked:
+        return []
+    maximum = ranked[0][1]
+    return [(topic, round(count / maximum, 3)) for topic, count in ranked]
 
 
 def top_words(word_docs: list[dict], limit: int = 120) -> list[dict]:

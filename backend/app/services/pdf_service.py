@@ -50,9 +50,20 @@ def extract_text_layer(pdf_path: str) -> tuple[list[PageTextResult], int]:
         page = doc[pno]
         pw, ph = page.rect.width, page.rect.height
         page_text = page.get_text("text")
+        text_page = None
+        if not page_text.strip():
+            try:
+                text_page = page.get_textpage_ocr(language="eng+hin", dpi=200)
+                page_text = page.get_text("text", textpage=text_page)
+            except Exception as exc:
+                doc.close()
+                raise RuntimeError(
+                    "This page is an image scan and needs Tesseract OCR (English and Hindi) installed."
+                ) from exc
         lines = []
         # word-level blocks with coordinates
-        for block in page.get_text("dict")["blocks"]:
+        text_dict = page.get_text("dict", textpage=text_page) if text_page else page.get_text("dict")
+        for block in text_dict["blocks"]:
             for line in block.get("lines", []):
                 line_text = "".join(span.get("text", "") for span in line.get("spans", []))
                 if not line_text.strip():

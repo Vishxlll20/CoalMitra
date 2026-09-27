@@ -96,17 +96,23 @@ def _line_containing(lines: list[dict], start: int, end: int):
 
 def _unit_for(match_text: str, key: str) -> str:
     lowered = match_text.lower()
-    if "kcal" in lowered or "kj" in lowered:
+    if key == "gcv" and ("kcal" in lowered or "kj" in lowered):
         return "kcal/kg"
-    if "million" in lowered or "mt" in re.findall(r"\b(mt|million)\b", lowered):
+    if key in {"proved_reserve_mt", "inferred_reserve_mt"} and ("million" in lowered or re.search(r"\bmt\b", lowered)):
         return "MT"
-    if "%" in lowered:
+    if key in {"ash_content", "moisture"} and "%" in lowered:
         return "%"
+    if key == "ob_ratio":
+        return ":1"
     return {"depth_m": "m", "area_sqkm": "sq km", "production_mtpa": "MTPA"}.get(key, "")
 
 
 def _unit_near(full: str, pos: int, key: str) -> str:
-    window = full[max(0, pos - 20):pos + 60]
+    line_start = full.rfind("\n", 0, pos) + 1
+    line_end = full.find("\n", pos)
+    if line_end < 0:
+        line_end = len(full)
+    window = full[line_start:line_end]
     u = _unit_for(window, key)
     return u
 

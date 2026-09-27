@@ -5,13 +5,23 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import require_roles
 from app.core.database import get_db
-from app.models import Document, Role
+from app.models import Document, FieldExtraction, Role
 from app.models.report import Anomaly, AnomalyStatus
 
 router = APIRouter(tags=["anomalies"])
 
 
-def _ser(a: Anomaly) -> dict:
+def _ser(a: Anomaly, db: Session) -> dict:
+    baseline_field = None
+    if a.baseline_document_id:
+        baseline_field = (
+            db.query(FieldExtraction)
+            .filter(
+                FieldExtraction.document_id == a.baseline_document_id,
+                FieldExtraction.field_key == a.metric_key,
+            )
+            .first()
+        )
     return {
         "id": a.id,
         "field_key": a.metric_key,
@@ -26,6 +36,9 @@ def _ser(a: Anomaly) -> dict:
         "rationale": a.rationale,
         "primary_doc_id": a.document_id,
         "baseline_doc_id": a.baseline_document_id,
+        "baseline_page_number": baseline_field.page_number if baseline_field else 1,
+        "baseline_bbox": baseline_field.bbox if baseline_field else {},
+        "baseline_confidence": baseline_field.confidence if baseline_field else 0,
         "page_number": a.page_number,
         "bbox": a.bbox or {},
         "confidence": a.confidence or 0,
@@ -46,7 +59,7 @@ def list_anomalies(severity: str | None = None, status: str | None = None,
         from app.models import Coalfield
         q = q.join(Coalfield, Anomaly.coalfield_id == Coalfield.id).filter(Coalfield.name == coalfield)
     rows = q.order_by(Anomaly.deviation_pct.desc()).all()
-    return [_ser(a) for a in rows]
+    return [_ser(a, db) for a in rows]
 
 
 @router.get("/anomalies/summary", dependencies=[Depends(require_roles(Role.GEOLOGIST, Role.AUDITOR))])
@@ -76,7 +89,7 @@ def ack_anomaly(anomaly_id: str, db: Session = Depends(get_db)):
     db.add(a)
     db.commit()
     db.refresh(a)
-    return _ser(a)
+    return _ser(a, db)
 
 
 # Backward-compatible alias (some callers use PATCH).

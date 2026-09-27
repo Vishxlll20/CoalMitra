@@ -153,6 +153,9 @@ export interface Anomaly {
   rationale: string;
   primary_doc_id: string;
   baseline_doc_id: string;
+  baseline_page_number: number;
+  baseline_bbox: BBox;
+  baseline_confidence: number;
   status: "open" | "reviewed";
   detected_at: string;
 }

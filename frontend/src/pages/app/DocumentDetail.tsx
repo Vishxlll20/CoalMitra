@@ -15,14 +15,20 @@ import { StatCard } from "../../components/shared/StatCard";
 import { StatRowSkeleton, CardSkeleton } from "../../components/shared/LoadingSkeleton";
 import { SourcePill } from "../../components/shared/SourcePill";
 import type { Document, FieldExtraction, PageResult } from "../../types";
+import { useRoleStore } from "../../stores/role";
+import { toast } from "sonner";
 
 export function DocumentDetail() {
   const { id } = useParams<{ id: string }>();
+  const role = useRoleStore((state) => state.role);
   const [doc, setDoc] = useState<Document | null>(null);
   const [fields, setFields] = useState<FieldExtraction[]>([]);
   const [pages, setPages] = useState<PageResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [showRaw, setShowRaw] = useState(false);
+  const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
+  const [correctedValue, setCorrectedValue] = useState("");
+  const [savingCorrection, setSavingCorrection] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -59,6 +65,21 @@ export function DocumentDetail() {
 
   const tone = confidenceTone(doc.total_confidence);
   const avgConf = Math.round(doc.total_confidence * 100);
+
+  const saveCorrection = async (field: FieldExtraction) => {
+    if (!id) return;
+    setSavingCorrection(true);
+    try {
+      const updated = await api.documents.correctField(id, field.id, correctedValue);
+      setFields((current) => current.map((item) => item.id === updated.id ? updated : item));
+      setEditingFieldId(null);
+      toast.success("Correction saved and added to the audit trail");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save correction");
+    } finally {
+      setSavingCorrection(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -147,21 +168,39 @@ export function DocumentDetail() {
                       <span className="font-medium text-navy-900">{f.field_label}</span>
                     </td>
                     <td className="px-5 py-3 font-semibold text-navy-800">
-                      <SourcePill
-                        refData={{
-                          document_id: doc.id,
-                          document_title: doc.title,
-                          display: f.value,
-                          page: f.page_number,
-                          bbox: f.bbox,
-                          confidence: f.confidence,
-                          value: f.numeric_value ?? f.value,
-                        }}
-                        origin="field"
-                        label={f.value}
-                      />
-                      {f.unit && (
+                      {editingFieldId === f.id ? (
+                        <div className="flex min-w-56 items-center gap-2">
+                          <input
+                            aria-label={`Correct ${f.field_label}`}
+                            value={correctedValue}
+                            onChange={(event) => setCorrectedValue(event.target.value)}
+                            className="h-8 min-w-0 flex-1 rounded border border-slate-300 px-2 text-[12px] font-normal outline-none focus:border-gold-600"
+                          />
+                          <button type="button" disabled={savingCorrection} onClick={() => void saveCorrection(f)} className="text-[11px] font-semibold text-success disabled:opacity-50">Save</button>
+                          <button type="button" disabled={savingCorrection} onClick={() => setEditingFieldId(null)} className="text-[11px] font-medium text-ink/45">Cancel</button>
+                        </div>
+                      ) : (
+                        <>
+                          <SourcePill
+                            refData={{
+                              document_id: doc.id,
+                              document_title: doc.title,
+                              display: f.value,
+                              page: f.page_number,
+                              bbox: f.bbox,
+                              confidence: f.confidence,
+                              value: f.numeric_value ?? f.value,
+                            }}
+                            origin="field"
+                            label={f.value}
+                          />
+                          {f.unit && (
                         <span className="ml-1 text-[12px] font-normal text-ink/40">{f.unit}</span>
+                          )}
+                          {role === "GEOLOGIST" && f.confidence < 0.98 && (
+                            <button type="button" onClick={() => { setEditingFieldId(f.id); setCorrectedValue(f.value); }} className="ml-2 text-[10.5px] font-medium text-gold-700 underline underline-offset-2">Correct</button>
+                          )}
+                        </>
                       )}
                     </td>
                     <td className="px-5 py-3">

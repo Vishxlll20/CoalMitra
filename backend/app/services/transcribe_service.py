@@ -10,7 +10,8 @@
 from __future__ import annotations
 
 import hashlib
-from pathlib import Path
+import os
+import tempfile
 
 from app.core.config import settings
 
@@ -49,22 +50,24 @@ class FasterWhisperProvider:
         )
 
     def transcribe(self, audio_bytes: bytes, sample_rate: int) -> dict:
-        import io
-
-        from faster_whisper import WhisperModel as _W
-
-        temp = Path("storage/voice_in.wav")
-        temp.write_bytes(audio_bytes)
-        segments, info = self.model.transcribe(str(temp), language=None, vad_filter=True)
-        text = " ".join(seg.text.strip() for seg in segments)
-        lang = info.language
-        conf = min(0.99, info.language_probability + 0.5)
-        return {
-            "transcript": text,
-            "language": lang,
-            "confidence": round(conf, 3),
-            "provider": "faster-whisper",
-        }
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp:
+            temp.write(audio_bytes)
+            temp_path = temp.name
+        try:
+            segments, info = self.model.transcribe(temp_path, language=None, vad_filter=True)
+            text = " ".join(seg.text.strip() for seg in segments)
+            confidence = min(0.99, info.language_probability + 0.5)
+            return {
+                "transcript": text,
+                "language": info.language,
+                "confidence": round(confidence, 3),
+                "provider": "faster-whisper",
+            }
+        finally:
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                pass
 
 
 def get_transcriber():

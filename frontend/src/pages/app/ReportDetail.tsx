@@ -12,6 +12,26 @@ import { Badge } from "../../components/ui/Badge";
 import { SourcePill } from "../../components/shared/SourcePill";
 import type { Report, ReportSection } from "../../types";
 
+function numericValue(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "string") return null;
+  const match = value.replace(/,/g, "").match(/-?\d+(?:\.\d+)?/);
+  return match ? Number(match[0]) : null;
+}
+
+function matchingTableRef(section: ReportSection, cell: unknown, column: number) {
+  if (column !== 1) return undefined;
+  const display = String(cell).trim().replace(/\s+/g, " ");
+  const cellNumber = numericValue(cell);
+  return section.refs?.find((ref) => {
+    if (ref.page <= 0) return false;
+    if (cellNumber !== null && typeof ref.value === "number") {
+      return Math.abs(cellNumber - ref.value) < 1e-7;
+    }
+    return String(ref.display).trim().replace(/\s+/g, " ") === display;
+  });
+}
+
 export function ReportDetail() {
   const { id } = useParams<{ id: string }>();
   const [report, setReport] = useState<Report | null>(null);
@@ -105,9 +125,7 @@ function SectionContent({ section }: { section: ReportSection }) {
           {rows.map((row: any[], ri: number) => (
             <tr key={ri} className="border-b border-slate-50 last:border-0">
               {row.map((cell: any, ci: number) => {
-                const ref = section.refs?.find(
-                  (r) => r.value === cell && r.page > 0
-                );
+                const ref = matchingTableRef(section, cell, ci);
                 return (
                   <td key={ci} className="py-2.5 pr-4">
                     {ref ? (

@@ -41,9 +41,9 @@ the **source panel slides in** from the right; the page PNG swaps to the right p
 field's **bounding box pulses gold**, then settles into a highlight; a corner chip counts
 up the extraction confidence; footer shows doc title, page, and **Open original** (serves the source PDF).
 
-**Upload** a PDF (even a non-PDF file works in demo mode): the stepper animates
-Upload → OCR → Extract → Index → Ready on the seeded deterministic progress; the new
-doc appears in the list.
+**Upload** a selectable-text PDF, image, CSV, or XLSX as a Geologist. The Documents table shows ingestion status while conversion, extraction, indexing, and report generation run. A scanned-only PDF or image requires Tesseract with English/Hindi language packs; without it the document is marked failed with an explanatory message.
+
+For a lower-confidence field, select **Correct**, enter the reviewed value, and save. The extraction and numeric metric update, the action is added to the audit trail, and a fresh report is generated.
 
 Document management is available to Geologists; Auditors can inspect source records read-only. Ministry Officials can open source pages through report and answer citations, but do not get raw field/emission views.
 
@@ -59,13 +59,13 @@ and appears in the list. Click **Export PDF** → downloads a reportlab-rendered
 ## 6. Insights
 
 **Word cloud** (120 terms, EN + Devanagari, sized by frequency). **Topic drift** — quarterly
-stacked area of 6 topics (Exploration / Reserves / Seam Quality / Environment / Production /
+stacked area of 6 keyword-scored topics (Exploration / Reserves / Seam Quality / Environment / Production /
 Compliance). Click a topic chip → the doc list filters to documents in that topic.
 
 ## 7. Anomalies
 
-Consistency dashboard: severity cards (Critical/High/Medium), deviation bars vs coalfield
-baseline, rationale text. As an Auditor, click **Ack** → the card flips to reviewed inline
+Consistency dashboard: severity cards (Critical/High/Medium), deviation bars vs historical
+same-block filings when present (coalfield baseline otherwise), rationale text. As an Auditor, click **Ack** → the card flips to reviewed inline
 (`POST /api/anomalies/{id}/ack`). Each anomaly deep-links its primary and baseline documents.
 
 ## 8. AI query — EN + HI with citations
@@ -78,8 +78,8 @@ styled as an "official response" (TemplateResponder — no LLM key needed).
 ## 9. Hindi voice query
 
 Press the mic button, speak, and the waveform animates while recording. On stop, the pure-JS
-WAV encoder ships the audio to `POST /api/chat/sessions/{id}/voice`; demo mode plays back a
-deterministic Hindi/English transcript; the answer renders with citations, and the browser
+WAV encoder ships the audio to `POST /api/chat/sessions/{id}/voice`; demo mode uses a
+deterministic mock Hindi/English transcript, while real mode uses faster-whisper when installed. The answer renders with citations, and the browser
 **reads it back** via `speechSynthesis` (`hi-IN` when Hindi).
 
 ## 10. Metrics

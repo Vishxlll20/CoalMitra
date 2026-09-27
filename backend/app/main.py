@@ -55,6 +55,15 @@ def _startup():
     except Exception as exc:
         import logging
         logging.getLogger("coalmitra").error(f"Demo account setup failed: {exc}")
+    try:
+        from app.services.ingestion import migrate_legacy_field_units
+        repaired = migrate_legacy_field_units()
+        if repaired:
+            import logging
+            logging.getLogger("coalmitra").info("Repaired legacy extraction units/refs: %s", repaired)
+    except Exception as exc:
+        import logging
+        logging.getLogger("coalmitra").error(f"Data compatibility migration failed: {exc}")
 
 
 @app.middleware("http")
@@ -143,7 +152,9 @@ def _mount_routers():
 
     app.include_router(auth.router, prefix="/api")
     for r in (documents, extraction, reports, insights, anomalies, chat, metrics, dashboard):
-        app.include_router(r.router, prefix="/api", dependencies=[Depends(get_current_user)])
+        # Aggregate metrics power public landing-page KPIs; role dashboards stay private.
+        dependencies = [] if r is metrics else [Depends(get_current_user)]
+        app.include_router(r.router, prefix="/api", dependencies=dependencies)
 
 
 _mount_routers()
